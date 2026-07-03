@@ -108,3 +108,38 @@ Rules:
 - confirm colors can be edited separately for dark and light mode
 - confirm theme toggle still works after saving
 - if approved: continue Phase 2 from this branch family or merge later into `main`
+
+## Latest Work — feature/luxury-minimalism-v1
+### Created on this branch (2026-07-03):
+- Created reusable `ExpandableCard` component at `src/components/ui/ExpandableCard.jsx`
+  - Includes `DetailRow` and `DetailDivider` sub-components
+  - Accordion behavior: only one item expanded at a time
+  - Luxury visual style: soft shadows, gradients, rounded corners, smooth animations
+  - Controlled + uncontrolled mode support
+  - Keyboard accessible (Enter/Space to toggle)
+  - Right-slot for inline action buttons
+- Added prominent Search icon button in Header
+  - Circular magnifying glass icon with ring indicator
+  - ⌘K keyboard shortcut support
+  - Opens GlobalSearchModal on click
+- Applied ExpandableCard to InventoryPage (product list)
+  - Shows: name, sale price, brand + stock count
+  - Expands: category, unit, barcode, pricing, batch details, actions
+- Applied ExpandableCard to LedgerPage (customer list)
+  - Shows: name, pending amount, purchases + loyalty points
+  - Expands: phone, ID, purchase history, loyalty progress bar, pending bills with payment input
+- Applied ExpandableCard to LedgerPage (supplier list)
+  - Shows: name, phone, email
+  - Expands: full contact details, WhatsApp action
+- Documented design principle in AGENT_BRAIN.md
+- Updated TASK_LOG.md
+
+### Remaining work:
+- Apply ExpandableCard to Staff page
+- Apply ExpandableCard to POS cart items
+- Apply ExpandableCard to Reports page rows
+- Apply ExpandableCard to Print History
+- Apply ExpandableCard to Expenses page
+- Apply ExpandableCard to Day Session entries
+- User tests branch `feature/luxury-minimalism-v1`
+- If approved: merge to main

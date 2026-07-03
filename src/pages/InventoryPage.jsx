@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 import { formatCurrency } from '../utils/currency';
 import usePermissions from '../hooks/usePermissions';
 import { printBarcodeLabel } from '../utils/barcode';
+import ExpandableCard, { DetailRow, DetailDivider } from '../components/ui/ExpandableCard';
 
 function initialProductForm() {
   return {
@@ -57,6 +58,7 @@ export default function InventoryPage() {
   const [stockForm, setStockForm] = useState(initialStockForm());
   const [selectedBarcodeProduct, setSelectedBarcodeProduct] = useState(null);
   const [detailView, setDetailView] = useState('');
+  const [expandedProduct, setExpandedProduct] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
@@ -475,106 +477,106 @@ export default function InventoryPage() {
             </div>
           </Card>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {productRows.map((product) => (
-              <Card key={product.id} className={!product.is_active ? 'opacity-70' : ''}>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{product.name}</h3>
-                    <p className="mt-1 text-sm text-slate-400">
-                      {product.brand || 'No brand'} • {product.unit || 'Unit not set'} • {product.barcode || 'No barcode'}
-                    </p>
+              <ExpandableCard
+                key={product.id}
+                id={product.id}
+                expandedId={expandedProduct}
+                onToggle={setExpandedProduct}
+                primary={product.name}
+                secondary={formatCurrency(product.latestBatch?.sale_price ?? 0, settings?.currency)}
+                tertiary={`${product.brand || 'No brand'} • Stock: ${product.totalStock}`}
+                icon={
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                }
+                badge={
+                  <Badge
+                    className={
+                      product.stockState === 'near_end'
+                        ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+                        : product.stockState === 'low'
+                          ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+                          : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                    }
+                  >
+                    {product.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                }
+                className={!product.is_active ? 'opacity-60' : ''}
+                rightSlot={
+                  <div className="flex items-center gap-1.5">
+                    {canEditProducts ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setProductForm({ id: product.id, name: product.name ?? '', barcode: product.barcode ?? '', brand: product.brand ?? '', category: product.category ?? MEDICINE_CATEGORIES[0], unit: product.unit ?? '' }); }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05] text-slate-400 transition hover:bg-white/10 hover:text-white"
+                        title="Edit product"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    ) : null}
+                    {canStockIn ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setStockForm(initialStockForm(product.id)); }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05] text-slate-400 transition hover:bg-white/10 hover:text-emerald-400"
+                        title="Quick stock-in"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      </button>
+                    ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className="border-white/10 bg-white/5 text-slate-200">{product.category || 'General'}</Badge>
-                    <Badge
-                      className={
-                        product.stockState === 'near_end'
-                          ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
-                          : product.stockState === 'low'
-                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
-                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                      }
-                    >
-                      Stock: {product.totalStock}
-                    </Badge>
-                    <Badge className={product.is_active ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-slate-500/30 bg-slate-500/10 text-slate-200'}>
-                      {product.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="mt-5 grid gap-3 md:grid-cols-4">
-                  <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                    <div className="text-slate-500">Latest sale price</div>
-                    <div className="mt-1 font-semibold text-white">
-                      {formatCurrency(product.latestBatch?.sale_price ?? 0, settings?.currency)}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                    <div className="text-slate-500">{canViewPurchasePrice ? 'Latest purchase price' : 'Batches'}</div>
-                    <div className="mt-1 font-semibold text-white">
-                      {canViewPurchasePrice
-                        ? formatCurrency(product.latestBatch?.purchase_price ?? 0, settings?.currency)
-                        : product.batchCount}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                    <div className="text-slate-500">Expired batches</div>
-                    <div className="mt-1 font-semibold text-white">{product.expiredCount}</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                    <div className="text-slate-500">Latest batch</div>
-                    <div className="mt-1 font-semibold text-white">{product.latestBatch?.batch_number ?? '—'}</div>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex flex-wrap gap-3">
+                }
+              >
+                <DetailRow icon="💊" label="Category" value={product.category || 'General'} />
+                <DetailRow icon="🏷️" label="Unit" value={product.unit || 'Not set'} />
+                <DetailRow icon="#" label="Barcode" value={product.barcode || 'Not assigned'} />
+                <DetailDivider label="Pricing & Stock" />
+                <DetailRow icon="💰" label="Sale price" value={formatCurrency(product.latestBatch?.sale_price ?? 0, settings?.currency)} highlight />
+                <DetailRow icon="📦" label="Total stock" value={product.totalStock} highlight />
+                {canViewPurchasePrice && (
+                  <DetailRow icon="🛒" label="Purchase price" value={formatCurrency(product.latestBatch?.purchase_price ?? 0, settings?.currency)} />
+                )}
+                <DetailRow icon="📋" label="Batches" value={product.batchCount} />
+                <DetailDivider label="Batch Details" />
+                <DetailRow icon="🔢" label="Latest batch" value={product.latestBatch?.batch_number ?? '—'} />
+                <DetailRow icon="⚠️" label="Expired batches" value={product.expiredCount} highlight={product.expiredCount > 0} />
+                {product.expiry_date && (
+                  <DetailRow icon="📅" label="Expiry" value={new Date(product.expiry_date).toLocaleDateString()} />
+                )}
+                <DetailDivider label="Actions" />
+                <div className="flex flex-wrap gap-2 pt-1">
                   {product.barcode ? (
-                    <Button variant="secondary" onClick={() => setSelectedBarcodeProduct(product)}>
+                    <Button variant="secondary" onClick={(e) => { e.stopPropagation(); setSelectedBarcodeProduct(product); }}>
                       Preview barcode
                     </Button>
                   ) : null}
                   {product.barcode ? (
                     <Button
                       variant="secondary"
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation();
                         printBarcodeLabel({
                           title: product.name,
                           subtitle: `${product.brand || 'Medicine'} • ${product.unit || 'Unit'}`,
                           code: product.barcode,
                           note: 'Scan this barcode in POS scanner-ready input.'
-                        })
-                      }
+                        });
+                      }}
                     >
                       Print barcode
                     </Button>
                   ) : null}
-                  {canEditProducts ? (
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        setProductForm({
-                          id: product.id,
-                          name: product.name ?? '',
-                          barcode: product.barcode ?? '',
-                          brand: product.brand ?? '',
-                          category: product.category ?? MEDICINE_CATEGORIES[0],
-                          unit: product.unit ?? ''
-                        })
-                      }
-                    >
-                      Edit
-                    </Button>
-                  ) : null}
-                  {canStockIn ? <Button variant="secondary" onClick={() => setStockForm(initialStockForm(product.id))}>Quick stock-in</Button> : null}
                   {canDeactivateProducts ? (
-                    <Button variant={product.is_active ? 'danger' : 'primary'} onClick={() => toggleProduct(product)}>
+                    <Button variant={product.is_active ? 'danger' : 'primary'} onClick={(e) => { e.stopPropagation(); toggleProduct(product); }}>
                       {product.is_active ? 'Deactivate' : 'Reactivate'}
                     </Button>
                   ) : null}
                 </div>
-              </Card>
+              </ExpandableCard>
             ))}
 
             {!productRows.length ? (
