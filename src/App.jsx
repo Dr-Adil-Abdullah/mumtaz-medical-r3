@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db/index';
 import { ensureCoreData, seedInitialData } from './db/seed';
 import { useAuthStore } from './store/authStore';
+import { connectionManager } from './utils/connectionManager';
 
 const FirstLaunch = lazy(() => import('./pages/FirstLaunch'));
 const Login = lazy(() => import('./pages/Login'));
@@ -67,8 +68,12 @@ export default function App() {
       if (active) setReady(true);
     });
 
+    // Start connection monitoring
+    connectionManager.startMonitoring();
+
     return () => {
       active = false;
+      connectionManager.stopMonitoring();
     };
   }, []);
 

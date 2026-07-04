@@ -283,3 +283,60 @@ Rules:
 - Then wait for my instruction before changing code."
 
 THIS IS THE STANDARD HANDOFF METHOD FOR THIS PROJECT.
+
+═══════════════════════════════════════════════
+## 🎨 UNIFORM DESIGN PRINCIPLE
+═══════════════════════════════════════════════
+
+"Progressive Disclosure + Luxury Minimalism"
+
+THIS IS THE DESIGN LAW FOR ALL PAGES AND LISTS.
+
+RULE 1 — Collapsed by Default:
+→ Every list, table or card (Inventory, Sales, Invoices,
+  Customers, Suppliers, etc.) shows only 2-3 CORE fields:
+  - Primary: Item/Person name (bold, white)
+  - Secondary: Most important number (Qty, Price, or Balance)
+  - Tertiary: Optional supporting detail (muted text)
+→ All other fields (company, batch, expiry, seller detail,
+  address, notes, etc.) stay HIDDEN.
+
+RULE 2 — Expand on Click (Accordion):
+→ When user clicks a row/card, it smoothly expands (200-300ms)
+  and reveals ALL details inline.
+→ Only ONE item expanded at a time (accordion behavior).
+→ Details stay on the SAME page — no separate modal/page
+  unless absolutely necessary.
+
+RULE 3 — Luxury Visual Style:
+→ Use whitespace and soft shadows instead of heavy borders.
+→ Font weight: names BOLD, details in gray/muted tones.
+→ Icons instead of labels where possible.
+→ Smooth transition/animation (200-300ms) on every expand/collapse.
+→ Consistent spacing and rounded corners (rounded-2xl) throughout.
+→ Gradient backgrounds (from-white/[0.04] to-white/[0.01]).
+→ Subtle hover effects (border brightens, slight shadow).
+
+RULE 4 — Apply Everywhere (Reusable Component):
+→ The pattern lives in <ExpandableCard /> component.
+→ Located at: src/components/ui/ExpandableCard.jsx
+→ Helper sub-components: <DetailRow />, <DetailDivider />
+→ EVERY module reuses these — never write custom card code.
+→ This ensures consistency and maintainability.
+
+IMPLEMENTATION CHECKLIST:
+□ Inventory page — ✅ Uses ExpandableCard
+□ Ledger page (customers) — ✅ Uses ExpandableCard
+□ Ledger page (suppliers) — ✅ Uses ExpandableCard
+□ POS page — TODO: Apply pattern to cart items
+□ Staff page — TODO: Apply pattern to staff list
+□ Reports page — TODO: Apply pattern to report rows
+□ Print History — TODO: Apply pattern to bill history
+□ Expenses page — TODO: Apply pattern to expense entries
+□ Day Session — TODO: Apply pattern to session entries
+
+SEARCH INDICATOR:
+→ A visible circular search icon in the header with a magnifying
+  glass icon and ⌘K shortcut hint.
+→ Click opens GlobalSearchModal for searching across all modules.
+→ Located in: src/components/layout/Header.jsx

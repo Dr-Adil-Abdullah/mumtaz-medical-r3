@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { navItems } from '../../constants/navigation';
@@ -8,6 +8,8 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import Modal from '../ui/Modal';
+import GlobalSearchModal from '../shared/GlobalSearchModal';
+import ConnectionStatusBadge from '../shared/ConnectionStatusBadge';
 import { ROLE_BADGE_STYLES, ROLE_LABELS } from '../../constants/roles';
 import { useAuthStore } from '../../store/authStore';
 import { applyThemeMode, getStoredThemeMode, persistThemeMode } from '../../utils/theme';
@@ -16,6 +18,7 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
   const location = useLocation();
   const updateOwnPin = useAuthStore((state) => state.updateOwnPin);
   const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -54,6 +57,22 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
     () => navItems.find((item) => location.pathname.startsWith(item.path)) ?? navItems[0],
     [location.pathname]
   );
+
+  // Keyboard shortcut: Ctrl/Cmd + K to open search
+  const handleKeyDown = useCallback((event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+      event.preventDefault();
+      setSearchOpen((prev) => !prev);
+    }
+    if (event.key === 'Escape') {
+      setSearchOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   function resetPinModal() {
     setCurrentPin('');
@@ -128,7 +147,27 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
+            {/* ── Search Button ── */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="group relative inline-flex h-11 items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 px-3.5 text-slate-400 transition-all duration-200 hover:border-brand-400/30 hover:bg-brand-500/10 hover:text-brand-300"
+              aria-label="Global Search"
+              title="Search (Ctrl+K)"
+            >
+              {/* Magnifying glass icon with a subtle circular ring */}
+              <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] ring-1 ring-white/[0.08] transition-all duration-200 group-hover:bg-brand-500/15 group-hover:ring-brand-400/20">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <span className="hidden text-sm font-medium sm:inline">Search</span>
+              <kbd className="hidden rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-mono text-slate-500 md:inline">⌘K</kbd>
+            </button>
+
             <OfflineBadge />
+            <ConnectionStatusBadge />
             <Button variant="secondary" onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
               {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
             </Button>
@@ -158,6 +197,9 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
           </div>
         </div>
       </header>
+
+      {/* ── Global Search Modal ── */}
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       <Modal
         open={pinModalOpen}

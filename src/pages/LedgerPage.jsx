@@ -16,6 +16,7 @@ import { formatCurrency } from '../utils/currency';
 import { generateCustomerId } from '../utils/idGenerator';
 import usePermissions from '../hooks/usePermissions';
 import { printBarcodeLabel } from '../utils/barcode';
+import ExpandableCard, { DetailRow, DetailDivider } from '../components/ui/ExpandableCard';
 import { buildCustomerMessage, buildPendingReminderMessage, buildSupplierMessage } from '../utils/whatsapp';
 import { isRecordCreatedByUser, isSaleVisibleToUser } from '../utils/recordScope';
 import { calculateLoyaltyRedeemValue, getLoyaltyProgress, getLoyaltyStage, getPointsToNextStage } from '../utils/loyalty';
@@ -50,6 +51,8 @@ export default function LedgerPage() {
   const [paymentValues, setPaymentValues] = useState({});
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [detailView, setDetailView] = useState('');
+  const [expandedCustomer, setExpandedCustomer] = useState(null);
+  const [expandedSupplier, setExpandedSupplier] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
@@ -416,126 +419,119 @@ export default function LedgerPage() {
               </div>
 
               {customerRows.map((customer) => (
-                <Card key={customer.id}>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-white">{customer.name}</h3>
-                      <p className="mt-1 text-sm text-slate-400">
-                        {customer.customer_id} • {customer.phone || 'No phone'}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge className="border-white/10 bg-white/5 text-slate-200">{customer.type.toUpperCase()}</Badge>
-                      <Badge className="border-brand-500/30 bg-brand-500/10 text-brand-100">
+                <ExpandableCard
+                  key={customer.id}
+                  id={customer.id}
+                  expandedId={expandedCustomer}
+                  onToggle={setExpandedCustomer}
+                  primary={customer.name}
+                  secondary={formatCurrency(customer.visiblePendingAmount, settings?.currency)}
+                  tertiary={`${customer.purchaseCount} purchases • ${customer.loyalty_points || 0} pts`}
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  }
+                  badge={
+                    <div className="flex items-center gap-1.5">
+                      <Badge className="border-white/10 bg-white/5 text-slate-200 text-[10px] px-2 py-0.5">{customer.type.toUpperCase()}</Badge>
+                      <Badge className="border-brand-500/30 bg-brand-500/10 text-brand-100 text-[10px] px-2 py-0.5">
                         {customer.loyaltyStage.icon} {customer.loyaltyStage.label}
                       </Badge>
-                      {!canViewAllCustomerHistory && customer.isCreatedByCurrentUser ? (
-                        <Badge className="border-sky-500/30 bg-sky-500/10 text-sky-100">Created by you</Badge>
-                      ) : null}
-                      <Badge
-                        className={
+                    </div>
+                  }
+                  rightSlot={
+                    <div className="flex items-center gap-1.5">
+                      <WhatsAppButton
+                        phone={customer.phone}
+                        message={
                           customer.isPending
-                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
-                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                            ? buildPendingReminderMessage({
+                                shopName: settings?.shop_name || 'Mumtaz Medical',
+                                customerName: customer.name,
+                                balance: customer.visiblePendingAmount,
+                                currency: settings?.currency,
+                                dueDate: customer.pendingSales[0]?.payback_date || ''
+                              })
+                            : buildCustomerMessage({
+                                shopName: settings?.shop_name || 'Mumtaz Medical',
+                                customerName: customer.name,
+                                pendingAmount: 0,
+                                currency: settings?.currency
+                              })
                         }
-                      >
-                        Pending: {formatCurrency(customer.visiblePendingAmount, settings?.currency)}
-                      </Badge>
+                        label=""
+                        compact
+                      />
+                    </div>
+                  }
+                >
+                  <DetailRow icon="📱" label="Phone" value={customer.phone || 'Not provided'} />
+                  <DetailRow icon="#" label="Customer ID" value={customer.customer_id} />
+                  {!canViewAllCustomerHistory && customer.isCreatedByCurrentUser ? (
+                    <DetailRow icon="👤" label="Created by" value="You" />
+                  ) : null}
+                  <DetailDivider label="Purchases & Dues" />
+                  <DetailRow icon="🛍️" label="Total purchases" value={customer.purchaseCount} />
+                  <DetailRow icon="📄" label="Pending bills" value={customer.pendingSales.length} />
+                  <DetailRow icon="💰" label="Total pending" value={formatCurrency(customer.visiblePendingAmount, settings?.currency)} highlight={customer.isPending} />
+                  <DetailDivider label="Loyalty" />
+                  <DetailRow icon="⭐" label="Points" value={customer.loyalty_points || 0} />
+                  <DetailRow icon="📊" label="To next stage" value={customer.pointsToNextStage || 0} />
+                  <DetailRow icon="🎁" label="Redeem value" value={formatCurrency(customer.loyaltyRedeemValue, settings?.currency)} highlight />
+
+                  {/* Loyalty progress bar */}
+                  <div className="mt-2 rounded-xl bg-white/[0.03] p-3">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                      <span>Loyalty progress</span>
+                      <span>{customer.loyaltyProgress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-white/[0.05]">
+                      <div className="h-2 rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all duration-500" style={{ width: `${customer.loyaltyProgress}%` }} />
                     </div>
                   </div>
 
-                  <div className="mt-5 grid gap-3 md:grid-cols-4">
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                      <div className="text-slate-500">Purchases</div>
-                      <div className="mt-1 font-semibold text-white">{customer.purchaseCount}</div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                      <div className="text-slate-500">Pending bills</div>
-                      <div className="mt-1 font-semibold text-white">{customer.pendingSales.length}</div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                      <div className="text-slate-500">Loyalty points</div>
-                      <div className="mt-1 font-semibold text-white">{customer.loyalty_points || 0}</div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                      <div className="text-slate-500">Points to next stage</div>
-                      <div className="mt-1 font-semibold text-white">{customer.pointsToNextStage || 0}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                      <div>
-                        <div className="font-semibold text-white">Loyalty progress</div>
-                        <div className="mt-1 text-slate-400">
-                          {customer.pointsToNextStage > 0
-                            ? `${customer.pointsToNextStage} point(s) to ${customer.loyaltyStage.label === 'Bronze' ? 'Silver' : customer.loyaltyStage.label === 'Silver' ? 'Gold' : 'Platinum'}`
-                            : 'Top stage reached'}
-                        </div>
-                      </div>
-                      <div className="text-right text-sm">
-                        <div className="font-semibold text-white">Redeem value</div>
-                        <div className="text-slate-400">{formatCurrency(customer.loyaltyRedeemValue, settings?.currency)}</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 h-3 rounded-full bg-slate-950/80">
-                      <div className="h-3 rounded-full bg-gradient-to-r from-brand-500 to-emerald-300" style={{ width: `${customer.loyaltyProgress}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Button variant="secondary" onClick={() => setSelectedCustomer(customer)}>
+                  {/* Actions */}
+                  <DetailDivider label="Actions" />
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button variant="secondary" onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer); }}>
                       Preview barcode
                     </Button>
                     <Button
-                      onClick={() =>
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         printBarcodeLabel({
                           title: customer.name,
                           subtitle: `${customer.loyaltyStage.icon} ${customer.loyaltyStage.label} • ${customer.customer_id}`,
                           code: customer.customer_id,
                           note: 'Use this customer barcode in scanner-ready fields.'
-                        })
-                      }
+                        });
+                      }}
                     >
                       Print barcode
                     </Button>
-                    <WhatsAppButton
-                      phone={customer.phone}
-                      message={
-                        customer.isPending
-                          ? buildPendingReminderMessage({
-                              shopName: settings?.shop_name || 'Mumtaz Medical',
-                              customerName: customer.name,
-                              balance: customer.visiblePendingAmount,
-                              currency: settings?.currency,
-                              dueDate: customer.pendingSales[0]?.payback_date || ''
-                            })
-                          : buildCustomerMessage({
-                              shopName: settings?.shop_name || 'Mumtaz Medical',
-                              customerName: customer.name,
-                              pendingAmount: 0,
-                              currency: settings?.currency
-                            })
-                      }
-                      label={customer.isPending ? 'Send reminder' : 'WhatsApp customer'}
-                    />
                   </div>
 
+                  {/* Pending bills */}
                   {customer.pendingSales.length ? (
-                    <div className="mt-5 space-y-3">
-                      {customer.pendingSales.map((sale) => (
-                        <div key={sale.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <div className="font-semibold text-white">{sale.bill_number}</div>
-                              <div className="text-sm text-slate-400">
-                                Due {formatCurrency(sale.balance_owed, settings?.currency)} • Payback {sale.payback_date || '—'}
+                    <>
+                      <DetailDivider label="Pending Bills" />
+                      <div className="space-y-2">
+                        {customer.pendingSales.map((sale) => (
+                          <div key={sale.id} className="rounded-xl bg-white/[0.03] p-3" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <span className="text-sm font-semibold text-white">{sale.bill_number}</span>
+                                <span className="ml-2 text-xs text-slate-500">Due {sale.payback_date || '—'}</span>
                               </div>
+                              <span className="text-sm font-semibold text-amber-300">{formatCurrency(sale.balance_owed, settings?.currency)}</span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2">
                               <Input
-                                className="min-w-[150px]"
-                                placeholder="Payment amount"
+                                className="min-w-[120px] flex-1"
+                                placeholder="Amount"
                                 type="number"
                                 min="0"
                                 value={paymentValues[sale.id] ?? ''}
@@ -543,18 +539,18 @@ export default function LedgerPage() {
                                   setPaymentValues((current) => ({ ...current, [sale.id]: event.target.value }))
                                 }
                               />
-                              <Button onClick={() => recordPayment(sale, customer)}>Record payment</Button>
+                              <Button onClick={() => recordPayment(sale, customer)}>Record</Button>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </>
                   ) : (
-                    <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 p-4 text-sm text-slate-400">
-                      No pending bills for this customer.
+                    <div className="mt-2 rounded-xl border border-dashed border-white/[0.06] p-3 text-center text-xs text-slate-600">
+                      No pending bills
                     </div>
                   )}
-                </Card>
+                </ExpandableCard>
               ))}
 
               {!customerRows.length ? (
@@ -616,14 +612,21 @@ export default function LedgerPage() {
               .slice()
               .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
               .map((supplier) => (
-                <Card key={supplier.id}>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-white">{supplier.name}</h3>
-                      <p className="mt-1 text-sm text-slate-400">
-                        {supplier.phone || 'No phone'} • {supplier.email || 'No email'}
-                      </p>
-                    </div>
+                <ExpandableCard
+                  key={supplier.id}
+                  id={supplier.id}
+                  expandedId={expandedSupplier}
+                  onToggle={setExpandedSupplier}
+                  primary={supplier.name}
+                  secondary={supplier.phone || 'No phone'}
+                  tertiary={supplier.email || 'No email'}
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                  }
+                  badge={
                     <Badge
                       className={
                         supplier.type === 'preferred'
@@ -633,11 +636,13 @@ export default function LedgerPage() {
                     >
                       {supplier.type.toUpperCase()}
                     </Badge>
-                  </div>
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300">
-                    {supplier.address || 'No address added yet.'}
-                  </div>
-                  <div className="mt-5 flex flex-wrap gap-3">
+                  }
+                >
+                  <DetailRow icon="📱" label="Phone" value={supplier.phone || 'Not provided'} />
+                  <DetailRow icon="📧" label="Email" value={supplier.email || 'Not provided'} />
+                  <DetailRow icon="📍" label="Address" value={supplier.address || 'Not provided'} />
+                  <DetailDivider label="Actions" />
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <WhatsAppButton
                       phone={supplier.phone}
                       message={buildSupplierMessage({
@@ -647,7 +652,7 @@ export default function LedgerPage() {
                       label="WhatsApp supplier"
                     />
                   </div>
-                </Card>
+                </ExpandableCard>
               ))}
 
             {!suppliers?.length ? (
