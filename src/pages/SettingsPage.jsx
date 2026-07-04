@@ -8,6 +8,7 @@ import { db } from '../db/index';
 import { useAuthStore } from '../store/authStore';
 import { downloadBackupJSON, restoreBackupPayload } from '../db/backup';
 import { applyThemeMode, DEFAULT_THEME_PALETTES, THEME_COLOR_FIELDS, THEME_PRESETS } from '../utils/theme';
+import CloudBackupSection from '../components/shared/CloudBackupSection';
 
 export default function SettingsPage() {
   const settings = useLiveQuery(() => db.settings.get(1), []);
