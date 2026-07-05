@@ -68,7 +68,8 @@ export default function App() {
       if (active) setReady(true);
     });
 
-    // Start connection monitoring
+    // Start connection monitoring (offline by default - Supabase disabled)
+    // App works perfectly offline. Cloud sync is optional and disabled by default.
     connectionManager.startMonitoring();
 
     return () => {
