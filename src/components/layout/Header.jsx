@@ -9,7 +9,6 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import Modal from '../ui/Modal';
 import GlobalSearchModal from '../shared/GlobalSearchModal';
-import ConnectionStatusBadge from '../shared/ConnectionStatusBadge';
 import { ROLE_BADGE_STYLES, ROLE_LABELS } from '../../constants/roles';
 import { useAuthStore } from '../../store/authStore';
 import { applyThemeMode, getStoredThemeMode, persistThemeMode } from '../../utils/theme';
@@ -167,7 +166,6 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
             </button>
 
             <OfflineBadge />
-            <ConnectionStatusBadge />
             <Button variant="secondary" onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
               {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
             </Button>

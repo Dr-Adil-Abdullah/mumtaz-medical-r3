@@ -1,0 +1,6 @@
+{
+  "title": "Revert: Remove Supabase Integration",
+  "body": "## 🔄 Revert Supabase Changes\n\nThis PR reverts the Supabase integration that was causing `ERR_CONNECTION_CLOSED` errors.\n\n### Reverted Commits:\n- `ea87353` - Fix: Disable Supabase auto-connect\n- `3e54467` - feat: Supabase offline-first integration\n\n### What was removed:\n- Supabase client (`src/supabase/client.js`)\n- Connection Manager (`src/utils/connectionManager.js`)\n- Sync Queue (`src/db/syncQueue.js`)\n- Connection Status Badge\n- Supabase schema documentation\n\n### Why revert?\nThe Supabase integration was causing connection errors in the browser console.\n\nThe app works perfectly fine without Supabase - it uses IndexedDB for local storage and doesn't need cloud sync.\n\n### Impact:\n- No more console errors\n- Cleaner codebase\n- App still works perfectly offline\n- All existing features remain intact\n- Google Drive backup still works",
+  "head": "remove-supabase",
+  "base": "main"
+}
