@@ -1,6 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
-  <rect width="256" height="256" rx="56" fill="#052e2b"/>
-  <rect x="36" y="36" width="184" height="184" rx="42" fill="#0f172a" stroke="#10b981" stroke-width="10"/>
-  <path d="M128 70v116M70 128h116" stroke="#34d399" stroke-width="20" stroke-linecap="round"/>
-  <circle cx="182" cy="182" r="22" fill="#10b981" opacity=".18"/>
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="#0f172a"/>
+  
+  <!-- Medical Cross -->
+  <rect x="92" y="58" width="72" height="140" rx="12" fill="#10b981"/>
+  <rect x="58" y="92" width="140" height="72" rx="12" fill="#10b981"/>
+  
+  <!-- Inner highlight -->
+  <rect x="102" y="68" width="52" height="120" rx="8" fill="#34d399" opacity="0.3"/>
+  <rect x="68" y="102" width="120" height="52" rx="8" fill="#34d399" opacity="0.3"/>
+  
+  <!-- Small pill icon -->
+  <circle cx="182" cy="182" r="28" fill="#052e2b"/>
+  <circle cx="182" cy="182" r="20" fill="#10b981"/>
+  <path d="M170 182h24" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
 </svg>

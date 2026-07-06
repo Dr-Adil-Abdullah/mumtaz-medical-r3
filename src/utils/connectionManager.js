@@ -1,6 +1,5 @@
 import { supabase } from '../supabase/client';
 
-// Connection status types
 export const CONNECTION_STATUS = {
   ONLINE_SYNCED: 'online_synced',
   ONLINE_SYNCING: 'online_syncing',
@@ -20,8 +19,7 @@ class ConnectionManager {
     this.checkInterval = null;
     this.errorMessage = null;
     this.retryCount = 0;
-    this.maxRetries = 3;
-    this.checkTimeout = null;
+    this.maxRetries = 1; // Only 1 quick attempt
   }
 
   subscribe(callback) {
@@ -69,60 +67,77 @@ class ConnectionManager {
     return this.internetOnline;
   }
 
-  async testSupabase() {
+  // === NEW: Quick 1-second sync attempt ===
+  async quickSyncAttempt() {
+    if (!this.checkInternet()) {
+      this.setStatus(CONNECTION_STATUS.OFFLINE, 'No internet');
+      return false;
+    }
+
+    this.setStatus(CONNECTION_STATUS.CONNECTING);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second only
+
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
       const { error } = await supabase
         .from('settings')
         .select('id')
         .limit(1)
         .abortSignal(controller.signal);
-      
+
       clearTimeout(timeoutId);
 
       if (error) {
         this.supabaseConnected = false;
-        return { success: false, error: error.message };
+        this.setStatus(CONNECTION_STATUS.OFFLINE, 'Supabase not reachable');
+        return false;
       }
-      
+
       this.supabaseConnected = true;
-      return { success: true };
+      this.setStatus(CONNECTION_STATUS.ONLINE_SYNCING);
+      
+      // Trigger full backup sync
+      await this.fullBackupSync();
+      
+      this.setLastSyncTime();
+      this.setStatus(CONNECTION_STATUS.ONLINE_SYNCED);
+      return true;
+
     } catch (err) {
+      clearTimeout(timeoutId);
       this.supabaseConnected = false;
-      return { success: false, error: err.message };
+      this.setStatus(CONNECTION_STATUS.OFFLINE, 'Connection timeout (1s)');
+      return false;
+    }
+  }
+
+  // === NEW: Full backup sync for all main tables ===
+  async fullBackupSync() {
+    if (!this.supabaseConnected) return;
+
+    try {
+      const { syncQueue } = await import('../db/syncQueue');
+      
+      // Process any pending changes first
+      await syncQueue.processQueue();
+
+      // Additional full sync logic can be added here
+      // For now we rely on syncQueue for Inventory, Ledger, Settings etc.
+      
+      console.log('[SmartSync] Full backup sync completed');
+    } catch (err) {
+      console.error('[SmartSync] Backup sync failed:', err);
     }
   }
 
   async checkConnection() {
-    if (!this.checkInternet()) {
-      this.setStatus(CONNECTION_STATUS.OFFLINE, 'No internet');
-      return;
-    }
-
-    this.setStatus(CONNECTION_STATUS.CONNECTING);
-
-    const result = await this.testSupabase();
-
-    if (result.success) {
-      this.retryCount = 0;
-      if (this.pendingChanges > 0) {
-        this.setStatus(CONNECTION_STATUS.ONLINE_SYNCING);
-        this.triggerSync();
-      } else {
-        this.setStatus(CONNECTION_STATUS.ONLINE_SYNCED);
-      }
-    } else {
-      this.retryCount++;
-      if (this.retryCount <= this.maxRetries) {
-        this.setStatus(CONNECTION_STATUS.ONLINE_ERROR, 'Retrying...');
-        // Retry after 30 seconds
-        if (this.checkTimeout) clearTimeout(this.checkTimeout);
-        this.checkTimeout = setTimeout(() => this.checkConnection(), 30000);
-      } else {
-        this.setStatus(CONNECTION_STATUS.OFFLINE, 'Working offline');
-      }
+    // Use the new quick 1-second attempt
+    const success = await this.quickSyncAttempt();
+    
+    if (!success) {
+      // Immediately go to offline mode (no long retries)
+      this.setStatus(CONNECTION_STATUS.OFFLINE, 'Working offline');
     }
   }
 
@@ -139,13 +154,14 @@ class ConnectionManager {
     }
   }
 
-  startMonitoring(intervalMs = 60000) {
+  startMonitoring(intervalMs = 30000) {
+    // Do one quick sync attempt on start
     this.checkConnection();
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
         this.internetOnline = true;
-        this.checkConnection();
+        this.quickSyncAttempt(); // Try quick sync when internet comes back
       });
       
       window.addEventListener('offline', () => {
@@ -155,12 +171,12 @@ class ConnectionManager {
     }
 
     if (this.checkInterval) clearInterval(this.checkInterval);
+    // Check every 30 seconds (but only quick 1s attempt)
     this.checkInterval = setInterval(() => this.checkConnection(), intervalMs);
   }
 
   stopMonitoring() {
     if (this.checkInterval) clearInterval(this.checkInterval);
-    if (this.checkTimeout) clearTimeout(this.checkTimeout);
   }
 }
 
