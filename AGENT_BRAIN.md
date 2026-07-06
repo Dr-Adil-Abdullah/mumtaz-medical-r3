@@ -340,3 +340,175 @@ SEARCH INDICATOR:
   glass icon and ⌘K shortcut hint.
 → Click opens GlobalSearchModal for searching across all modules.
 → Located in: src/components/layout/Header.jsx
+
+═══════════════════════════════════════════════
+## 📊 PROJECT STATUS & COMPLETED FEATURES
+═══════════════════════════════════════════════
+
+### ✅ COMPLETED FEATURES (as of 2026-07-04):
+
+1. **Luxury Minimalism Design System**
+   - ExpandableCard component (accordion pattern)
+   - Applied to Inventory, Ledger (Customers + Suppliers)
+   - DetailRow + DetailDivider helper components
+   - Smooth animations, luxury visual style
+
+2. **Search System**
+   - Search icon in Header (circular magnifying glass)
+   - ⌘K / Ctrl+K keyboard shortcut
+   - GlobalSearchModal with scope filters
+   - Search across: Inventory, Ledger, Staff, Bills, Activity, Settings
+
+3. **Supabase Offline-First Integration**
+   - Connection Manager (internet + Supabase status tracking)
+   - Sync Queue (offline changes queue, auto-sync when online)
+   - Connection Status Badge in Header
+   - SQL schema for 12 tables (docs/supabase-schema.sql)
+   - Real-time monitoring every 30 seconds
+   - Auto-reconnect on connection restore
+
+4. **UI Components**
+   - WhatsAppButton compact mode
+   - OfflineBadge
+   - Badge, Button, Card, Modal, Input, PinPad, StatCard
+   - ErrorBoundary
+   - BarcodeCard, ReceiptPreview, SectionIntro
+
+---
+
+### 🔄 IN PROGRESS:
+
+1. **Cloud Backup System** (STARTING NOW)
+   - Google Drive integration
+   - OneDrive integration
+   - Backup/Restore UI in Settings
+   - Auto-backup option
+   - All data backup: settings, products, customers, sales, etc.
+
+---
+
+### 📝 PLANNED FEATURES:
+
+1. **Multi-device Real-time Sync**
+   - After Supabase tables created
+   - Real-time listeners for all tables
+   - Conflict resolution
+   - Role-based access control in Supabase
+
+2. **ExpandableCard Pattern**
+   - Apply to Staff page
+   - Apply to POS cart items
+   - Apply to Reports page
+   - Apply to Print History
+   - Apply to Expenses page
+   - Apply to Day Session
+
+3. **Advanced Features**
+   - Supplier history and linked purchase details
+   - Advanced owner settings sections
+   - Deeper report comparison views
+   - Sync conflict handling improvements
+   - More export/print polish
+
+---
+
+### 🌿 BRANCH MANAGEMENT:
+
+**RULE:** Each feature on separate branch for easy revert
+
+**Active Branches:**
+1. `main` - Stable production code
+2. `feature/luxury-minimalism-v1` - UI improvements (PR #1)
+3. `feature/supabase-offline-sync-v1` - Supabase integration (PR #2)
+4. `feature/cloud-backup-v1` - Cloud backup system (NEXT)
+
+**Branch Workflow:**
+- Create feature branch
+- Implement feature
+- Test locally
+- Push to GitHub
+- Create Pull Request
+- User reviews
+- Merge to main (if approved)
+
+**Revert Method:**
+- If feature is bad: close PR, delete branch
+- Or: git checkout main
+- Stable code always preserved
+
+---
+
+### 🔧 NEXT IMMEDIATE TASKS:
+
+1. User runs SQL schema in Supabase SQL Editor
+2. User tests connection status badge
+3. User merges PR #2
+4. Start cloud backup system (feature/cloud-backup-v1)
+5. Implement Google Drive backup
+6. Implement OneDrive backup
+7. Add backup/restore UI in Settings page
+
+
+---
+
+### ✅ Cloud Backup System (2026-07-04) - JUST COMPLETED
+
+**New Feature: Complete Cloud Backup System**
+
+1. **Local Backup**
+   - Export/import all data (12 tables)
+   - Download as JSON file
+   - Upload from JSON file
+   - Quick backup to localStorage
+
+2. **Google Drive Integration**
+   - Google OAuth authentication
+   - Upload/download/list/delete backups
+   - Automatic metadata (timestamp, version)
+   - Stored in user's Google Drive
+
+3. **OneDrive Integration**
+   - Microsoft OAuth (MSAL) authentication
+   - Upload/download/list/delete backups
+   - Stored in `MumtazMedical` folder
+   - Full OneDrive API integration
+
+4. **UI Components**
+   - CloudBackupSection component
+   - Integrated in Settings page
+   - Status messages and error handling
+   - Confirmation dialogs
+
+5. **Documentation**
+   - Complete setup guide (`docs/BACKUP_SETUP_GUIDE.md`)
+   - Step-by-step instructions
+   - Troubleshooting guide
+   - Setup checklist
+
+**Branch:** `feature/cloud-backup-v1`
+**Status:** Ready for testing and merge
+**Build:** ✅ Successful (5.67s, no errors)
+
+---
+
+### 📝 NEXT STEPS:
+
+1. **User Setup Required:**
+   - Create Google Cloud project → Get Client ID
+   - Register Azure AD app → Get Client ID
+   - Add Client IDs to respective files
+   - Test Google Drive backup
+   - Test OneDrive backup
+
+2. **After Testing:**
+   - Merge PR to main
+   - Deploy to Netlify
+   - User can start using cloud backup
+
+3. **Future Enhancements:**
+   - Auto-backup on schedule
+   - Backup encryption
+   - Backup compression
+   - Backup versioning
+   - Selective backup (choose which tables)
+

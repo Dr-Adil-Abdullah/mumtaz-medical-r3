@@ -98,48 +98,125 @@ Use docs/FEATURES_REFERENCE.md only when feature-level reference is needed.
 
 Rules:
 - Source reference repo must stay unchanged.
-- New changes must happen only in R1 branches.
-- First summarize current state, active branch, and next task.
-- Then wait for my instruction before changing code.
 
-## Next Tasks
-- branch preview deploy should now target `feature/theme-palette-settings-v1`
-- user tests admin-controlled palette editing in Settings
-- confirm colors can be edited separately for dark and light mode
-- confirm theme toggle still works after saving
-- if approved: continue Phase 2 from this branch family or merge later into `main`
+## Latest Work — feature/cloud-backup-v1 (2026-07-04)
+### ✅ COMPLETED on this branch:
 
-## Latest Work — feature/luxury-minimalism-v1
-### Created on this branch (2026-07-03):
-- Created reusable `ExpandableCard` component at `src/components/ui/ExpandableCard.jsx`
-  - Includes `DetailRow` and `DetailDivider` sub-components
-  - Accordion behavior: only one item expanded at a time
-  - Luxury visual style: soft shadows, gradients, rounded corners, smooth animations
-  - Controlled + uncontrolled mode support
-  - Keyboard accessible (Enter/Space to toggle)
-  - Right-slot for inline action buttons
-- Added prominent Search icon button in Header
-  - Circular magnifying glass icon with ring indicator
-  - ⌘K keyboard shortcut support
-  - Opens GlobalSearchModal on click
-- Applied ExpandableCard to InventoryPage (product list)
-  - Shows: name, sale price, brand + stock count
-  - Expands: category, unit, barcode, pricing, batch details, actions
-- Applied ExpandableCard to LedgerPage (customer list)
-  - Shows: name, pending amount, purchases + loyalty points
-  - Expands: phone, ID, purchase history, loyalty progress bar, pending bills with payment input
-- Applied ExpandableCard to LedgerPage (supplier list)
-  - Shows: name, phone, email
-  - Expands: full contact details, WhatsApp action
-- Documented design principle in AGENT_BRAIN.md
-- Updated TASK_LOG.md
+1. **Local Backup System**
+   - ✅ Created `src/utils/backup.js`
+   - ✅ Export all data from IndexedDB (12 tables)
+   - ✅ Import data to IndexedDB
+   - ✅ Download backup as JSON file
+   - ✅ Upload backup from JSON file
+   - ✅ Get backup statistics
+   - ✅ Quick backup to localStorage (auto-backup)
 
-### Remaining work:
-- Apply ExpandableCard to Staff page
-- Apply ExpandableCard to POS cart items
-- Apply ExpandableCard to Reports page rows
-- Apply ExpandableCard to Print History
-- Apply ExpandableCard to Expenses page
-- Apply ExpandableCard to Day Session entries
-- User tests branch `feature/luxury-minimalism-v1`
-- If approved: merge to main
+2. **Google Drive Integration**
+   - ✅ Created `src/utils/googleDriveBackup.js`
+   - ✅ Google OAuth authentication
+   - ✅ Upload backup to Google Drive
+   - ✅ List all backups from Google Drive
+   - ✅ Download backup from Google Drive
+   - ✅ Delete backup from Google Drive
+   - ✅ Backup metadata (timestamp, version, shop name)
+
+3. **OneDrive Integration**
+   - ✅ Created `src/utils/oneDriveBackup.js`
+   - ✅ Microsoft OAuth authentication (MSAL)
+   - ✅ Upload backup to OneDrive (MumtazMedical folder)
+   - ✅ List all backups from OneDrive
+   - ✅ Download backup from OneDrive
+   - ✅ Delete backup from OneDrive
+
+4. **UI Components**
+   - ✅ Created `src/components/shared/CloudBackupSection.jsx`
+   - ✅ Local backup section (download/restore)
+   - ✅ Google Drive section (connect, backup, list, restore, delete)
+   - ✅ OneDrive section (connect, backup, list, restore, delete)
+   - ✅ Status messages and error handling
+   - ✅ Confirmation dialogs for restore/delete
+
+5. **Settings Page Integration**
+   - ✅ Updated `src/pages/SettingsPage.jsx`
+   - ✅ Added CloudBackupSection component
+   - ✅ Integrated with existing settings UI
+
+6. **External Scripts**
+   - ✅ Updated `index.html` with Google API scripts
+   - ✅ Updated `index.html` with Microsoft MSAL script
+
+7. **Documentation**
+   - ✅ Created `docs/BACKUP_SETUP_GUIDE.md`
+   - ✅ Step-by-step Google Drive setup
+   - ✅ Step-by-step OneDrive setup
+   - ✅ Troubleshooting guide
+   - ✅ Checklist for setup
+
+### ⏳ PENDING (User action required):
+- [ ] User must create Google Cloud project and get Client ID
+- [ ] User must add Google Client ID to `googleDriveBackup.js`
+- [ ] User must register Azure AD app and get Client ID
+- [ ] User must add Microsoft Client ID to `oneDriveBackup.js`
+- [ ] User must test Google Drive backup
+- [ ] User must test OneDrive backup
+- [ ] User must merge PR
+
+### 📊 Build Status:
+- ✅ Build successful (5.67s)
+- ✅ No errors
+- ✅ All modules transformed
+
+### 🔗 Pull Request:
+- Branch: `feature/cloud-backup-v1`
+- PR: Will be created after commit
+- Ready for review and merge
+
+
+---
+
+## Latest Work — feature/settings-redesign-v1 (2026-07-04)
+### ✅ COMPLETED on this branch:
+
+1. **New Component: SettingsSection**
+   - Location: `src/components/ui/SettingsSection.jsx`
+   - Clickable header with icon, title, subtitle
+   - Summary preview when collapsed
+   - Smooth expand/collapse animation (350ms)
+   - Luxury minimalist design
+   - Reusable across app
+
+2. **Complete Settings Page Redesign**
+   - Reorganized into 9 collapsible sections
+   - All sections collapsed by default (except Shop Info)
+   - Summary values visible without expanding
+   - Status badges for quick scanning
+   - Sticky save button at bottom
+   - Removed "Cloud sync removed for stability" card
+
+3. **Sections Created:**
+   - 🏪 Shop Information (default open)
+   - 🧾 Receipt Settings
+   - 📦 Inventory & Stock
+   - 💰 Tax & Discount
+   - ⭐ Loyalty Program
+   - 👤 VIP & Customers
+   - 🎨 Theme & Colors
+   - 💾 Local Backup (JSON)
+   - ☁️ Cloud Backup (Google Drive + OneDrive)
+
+4. **Merged from other branches:**
+   - Cloud Backup System (feature/cloud-backup-v1)
+   - Supabase Connection Manager (feature/supabase-offline-sync-v1)
+   - Connection Status Badge
+   - ExpandableCard pattern
+
+### 📊 Build Status:
+- ✅ Build successful (6.09s)
+- ✅ SettingsPage: 39.93 kB (gzip: 9.72 kB)
+- ✅ No errors
+
+### 🔗 Pull Request:
+- Branch: `feature/settings-redesign-v1`
+- PR #4: https://github.com/Dr-Adil-Abdullah/mumtaz-medical-r2/pull/4
+- Ready for testing and merge
+

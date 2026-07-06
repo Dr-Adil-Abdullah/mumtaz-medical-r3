@@ -1,51 +1,67 @@
 /**
  * Google Drive Backup Integration
  * Uses Google Drive API to upload/download backups
- * 
- * Setup Instructions:
- * 1. Go to Google Cloud Console: https://console.cloud.google.com/
- * 2. Create a new project or select existing
- * 3. Enable Google Drive API
- * 4. Create OAuth 2.0 credentials (Web application)
- * 5. Add authorized JavaScript origins (your domain)
- * 6. Copy Client ID and paste below
  */
 
-const GOOGLE_CLIENT_ID = '1080780384058-dtqcftnbg7rotda4suh9khnm9n1680t0.apps.googleusercontent.com'; // TODO: Replace with actual client ID
+const GOOGLE_CLIENT_ID = '1080780384058-dtqcftnbg7rotda4suh9khnm9n1680t0.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
-let tokenClient;
 let gapiInited = false;
 let gisInited = false;
+let tokenClient = null;
+
+/**
+ * Load a script dynamically
+ */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
 
 /**
  * Initialize Google API client
  */
 export async function initializeGapiClient() {
   try {
-    await gapi.client.init({
-      discoveryDocs: [DISCOVERY_DOC],
+    await loadScript('https://apis.google.com/js/api.js');
+    return new Promise((resolve) => {
+      window.gapi.load('client', async () => {
+        await window.gapi.client.init({
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        });
+        gapiInited = true;
+        console.log('✅ Google API client initialized');
+        resolve();
+      });
     });
-    gapiInited = true;
-    console.log('✅ Google API client initialized');
   } catch (error) {
     console.error('❌ GAPI init failed:', error);
-    throw error;
+    throw new Error('Google API initialization failed. Please refresh the page.');
   }
 }
 
 /**
  * Initialize Google Identity Services
  */
-export function initializeGisClient() {
+export async function initializeGisClient() {
   try {
-    tokenClient = google.accounts.oauth2.initTokenClient({
+    await loadScript('https://accounts.google.com/gsi/client');
+    tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
-      callback: (tokenResponse) => {
-        if (tokenResponse.error) {
-          console.error('❌ Auth error:', tokenResponse.error);
+      callback: (response) => {
+        if (response.error) {
+          console.error('❌ Auth error:', response.error);
+          throw new Error(response.error);
         }
       },
     });
@@ -53,7 +69,7 @@ export function initializeGisClient() {
     console.log('✅ Google Identity Services initialized');
   } catch (error) {
     console.error('❌ GIS init failed:', error);
-    throw error;
+    throw new Error('Google Identity Services initialization failed. Please refresh the page.');
   }
 }
 
@@ -61,17 +77,16 @@ export function initializeGisClient() {
  * Check if Google API is ready
  */
 export function isGoogleApiReady() {
-  return gapiInited && gisInited && typeof gapi !== 'undefined' && typeof google !== 'undefined';
+  return gapiInited && gisInited;
 }
 
 /**
  * Authenticate user with Google
- * @returns {Promise<Boolean>} true if authenticated
  */
 export async function authenticateGoogle() {
   return new Promise((resolve, reject) => {
     if (!isGoogleApiReady()) {
-      reject(new Error('Google API not initialized. Please reload the page.'));
+      reject(new Error('Google API not initialized. Please refresh the page and try again.'));
       return;
     }
 
@@ -85,8 +100,7 @@ export async function authenticateGoogle() {
         }
       };
 
-      // Check if user is already authenticated
-      if (gapi.client.getToken() === null) {
+      if (window.gapi.client.getToken() === null) {
         tokenClient.requestAccessToken({ prompt: 'consent' });
       } else {
         tokenClient.requestAccessToken({ prompt: '' });
@@ -99,13 +113,10 @@ export async function authenticateGoogle() {
 
 /**
  * Upload backup to Google Drive
- * @param {Object} backup - Backup object from exportAllData()
- * @param {String} filename - Optional custom filename
- * @returns {Promise<Object>} Upload result with file ID
  */
 export async function uploadToGoogleDrive(backup, filename = null) {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized');
+    throw new Error('Google API not initialized. Please refresh the page.');
   }
 
   try {
@@ -134,7 +145,7 @@ export async function uploadToGoogleDrive(backup, filename = null) {
     const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${gapi.client.getToken().access_token}`
+        Authorization: `Bearer ${window.gapi.client.getToken().access_token}`
       },
       body: form
     });
@@ -161,15 +172,14 @@ export async function uploadToGoogleDrive(backup, filename = null) {
 
 /**
  * List backup files from Google Drive
- * @returns {Promise<Array>} List of backup files
  */
 export async function listGoogleDriveBackups() {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized');
+    throw new Error('Google API not initialized. Please refresh the page.');
   }
 
   try {
-    const response = await gapi.client.drive.files.list({
+    const response = await window.gapi.client.drive.files.list({
       q: "appProperties has { key='backupType' and value='mumtaz_medical' }",
       fields: 'files(id, name, createdTime, modifiedTime, size, webViewLink)',
       orderBy: 'createdTime desc',
@@ -195,16 +205,14 @@ export async function listGoogleDriveBackups() {
 
 /**
  * Download backup from Google Drive
- * @param {String} fileId - Google Drive file ID
- * @returns {Promise<Object>} Backup object
  */
 export async function downloadFromGoogleDrive(fileId) {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized');
+    throw new Error('Google API not initialized. Please refresh the page.');
   }
 
   try {
-    const accessToken = gapi.client.getToken().access_token;
+    const accessToken = window.gapi.client.getToken().access_token;
     
     const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: {
@@ -229,15 +237,14 @@ export async function downloadFromGoogleDrive(fileId) {
 
 /**
  * Delete backup from Google Drive
- * @param {String} fileId - Google Drive file ID
  */
 export async function deleteFromGoogleDrive(fileId) {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized');
+    throw new Error('Google API not initialized. Please refresh the page.');
   }
 
   try {
-    await gapi.client.drive.files.delete({
+    await window.gapi.client.drive.files.delete({
       fileId: fileId
     });
 
@@ -252,11 +259,11 @@ export async function deleteFromGoogleDrive(fileId) {
  * Sign out from Google
  */
 export function signOutGoogle() {
-  if (typeof google !== 'undefined' && google.accounts) {
-    const token = gapi.client.getToken();
+  if (typeof window.google !== 'undefined' && window.google.accounts) {
+    const token = window.gapi.client.getToken();
     if (token) {
-      google.accounts.oauth2.revoke(token.access_token);
-      gapi.client.setToken('');
+      window.google.accounts.oauth2.revoke(token.access_token);
+      window.gapi.client.setToken('');
       console.log('✅ Signed out from Google');
     }
   }
