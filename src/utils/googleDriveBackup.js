@@ -1,6 +1,6 @@
 /**
  * Google Drive Backup Integration
- * Uses Google Drive API to upload/download backups
+ * Simple approach - uses scripts from index.html
  */
 
 const GOOGLE_CLIENT_ID = '1080780384058-dtqcftnbg7rotda4suh9khnm9n1680t0.apps.googleusercontent.com';
@@ -11,112 +11,94 @@ let gisInited = false;
 let tokenClient = null;
 
 /**
- * Load a script dynamically
+ * Initialize Google APIs
  */
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
-      return;
+export async function initializeGoogleAPIs() {
+  if (gapiInited && gisInited) return;
+
+  try {
+    // Wait for GAPI to load
+    if (typeof window.gapi === 'undefined') {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (typeof window.gapi === 'undefined') {
+        throw new Error('Google API script not loaded. Please refresh the page.');
+      }
     }
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
 
-/**
- * Initialize Google API client
- */
-export async function initializeGapiClient() {
-  try {
-    await loadScript('https://apis.google.com/js/api.js');
-    return new Promise((resolve) => {
-      window.gapi.load('client', async () => {
-        await window.gapi.client.init({
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-        });
-        gapiInited = true;
-        console.log('✅ Google API client initialized');
-        resolve();
-      });
+    await new Promise((resolve) => {
+      window.gapi.load('client', resolve);
     });
-  } catch (error) {
-    console.error('❌ GAPI init failed:', error);
-    throw new Error('Google API initialization failed. Please refresh the page.');
-  }
-}
 
-/**
- * Initialize Google Identity Services
- */
-export async function initializeGisClient() {
-  try {
-    await loadScript('https://accounts.google.com/gsi/client');
+    await window.gapi.client.init({
+      discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+    });
+
+    gapiInited = true;
+
+    // Wait for GIS to load
+    if (typeof window.google === 'undefined' || typeof window.google.accounts === 'undefined') {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (typeof window.google === 'undefined' || typeof window.google.accounts === 'undefined') {
+        throw new Error('Google Identity Services not loaded. Please refresh the page.');
+      }
+    }
+
     tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
       callback: (response) => {
         if (response.error) {
-          console.error('❌ Auth error:', response.error);
-          throw new Error(response.error);
+          console.error('Auth error:', response.error);
         }
       },
     });
+
     gisInited = true;
-    console.log('✅ Google Identity Services initialized');
   } catch (error) {
-    console.error('❌ GIS init failed:', error);
-    throw new Error('Google Identity Services initialization failed. Please refresh the page.');
+    console.error('Google API init failed:', error);
+    throw error;
   }
 }
 
 /**
- * Check if Google API is ready
+ * Check if API is ready
  */
 export function isGoogleApiReady() {
   return gapiInited && gisInited;
 }
 
 /**
- * Authenticate user with Google
+ * Authenticate user
  */
 export async function authenticateGoogle() {
+  if (!isGoogleApiReady()) {
+    await initializeGoogleAPIs();
+  }
+
   return new Promise((resolve, reject) => {
-    if (!isGoogleApiReady()) {
-      reject(new Error('Google API not initialized. Please refresh the page and try again.'));
-      return;
-    }
-
-    try {
-      tokenClient.callback = (response) => {
-        if (response.error) {
-          reject(new Error(response.error));
-        } else {
-          console.log('✅ Google authentication successful');
-          resolve(true);
-        }
-      };
-
-      if (window.gapi.client.getToken() === null) {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+    tokenClient.callback = (response) => {
+      if (response.error) {
+        reject(new Error(response.error));
       } else {
-        tokenClient.requestAccessToken({ prompt: '' });
+        resolve(true);
       }
-    } catch (error) {
-      reject(error);
+    };
+
+    const token = window.gapi.client.getToken();
+    if (token === null) {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+      resolve(true);
     }
   });
 }
 
 /**
- * Upload backup to Google Drive
+ * Upload backup
  */
 export async function uploadToGoogleDrive(backup, filename = null) {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized. Please refresh the page.');
+    await initializeGoogleAPIs();
   }
 
   try {
@@ -156,8 +138,6 @@ export async function uploadToGoogleDrive(backup, filename = null) {
     }
 
     const result = await response.json();
-    console.log(`✅ Backup uploaded to Google Drive: ${result.id}`);
-
     return {
       success: true,
       fileId: result.id,
@@ -165,17 +145,16 @@ export async function uploadToGoogleDrive(backup, filename = null) {
       webViewLink: result.webViewLink
     };
   } catch (error) {
-    console.error('❌ Google Drive upload failed:', error);
-    throw new Error(`Google Drive upload failed: ${error.message}`);
+    throw new Error(`Upload failed: ${error.message}`);
   }
 }
 
 /**
- * List backup files from Google Drive
+ * List backups
  */
 export async function listGoogleDriveBackups() {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized. Please refresh the page.');
+    await initializeGoogleAPIs();
   }
 
   try {
@@ -187,8 +166,6 @@ export async function listGoogleDriveBackups() {
     });
 
     const files = response.result.files || [];
-    console.log(`✅ Found ${files.length} backups in Google Drive`);
-    
     return files.map(file => ({
       id: file.id,
       name: file.name,
@@ -198,26 +175,22 @@ export async function listGoogleDriveBackups() {
       webViewLink: file.webViewLink
     }));
   } catch (error) {
-    console.error('❌ List backups failed:', error);
-    throw new Error(`Failed to list backups: ${error.message}`);
+    throw new Error(`List failed: ${error.message}`);
   }
 }
 
 /**
- * Download backup from Google Drive
+ * Download backup
  */
 export async function downloadFromGoogleDrive(fileId) {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized. Please refresh the page.');
+    await initializeGoogleAPIs();
   }
 
   try {
     const accessToken = window.gapi.client.getToken().access_token;
-    
     const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
 
     if (!response.ok) {
@@ -225,46 +198,23 @@ export async function downloadFromGoogleDrive(fileId) {
       throw new Error(error.error?.message || 'Download failed');
     }
 
-    const backup = await response.json();
-    console.log(`✅ Backup downloaded from Google Drive: ${fileId}`);
-    
-    return backup;
+    return await response.json();
   } catch (error) {
-    console.error('❌ Google Drive download failed:', error);
-    throw new Error(`Google Drive download failed: ${error.message}`);
+    throw new Error(`Download failed: ${error.message}`);
   }
 }
 
 /**
- * Delete backup from Google Drive
+ * Delete backup
  */
 export async function deleteFromGoogleDrive(fileId) {
   if (!isGoogleApiReady()) {
-    throw new Error('Google API not initialized. Please refresh the page.');
+    await initializeGoogleAPIs();
   }
 
   try {
-    await window.gapi.client.drive.files.delete({
-      fileId: fileId
-    });
-
-    console.log(`✅ Backup deleted from Google Drive: ${fileId}`);
+    await window.gapi.client.drive.files.delete({ fileId });
   } catch (error) {
-    console.error('❌ Delete failed:', error);
-    throw new Error(`Failed to delete backup: ${error.message}`);
-  }
-}
-
-/**
- * Sign out from Google
- */
-export function signOutGoogle() {
-  if (typeof window.google !== 'undefined' && window.google.accounts) {
-    const token = window.gapi.client.getToken();
-    if (token) {
-      window.google.accounts.oauth2.revoke(token.access_token);
-      window.gapi.client.setToken('');
-      console.log('✅ Signed out from Google');
-    }
+    throw new Error(`Delete failed: ${error.message}`);
   }
 }
