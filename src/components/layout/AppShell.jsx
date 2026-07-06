@@ -43,13 +43,12 @@ export default function AppShell() {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Default: collapsed
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Default: OPEN
 
   const handleToggleCollapse = () => {
     setSidebarCollapsed(prev => !prev);
   };
 
-  // Dynamic grid class based on sidebar state
   const gridClass = sidebarCollapsed 
     ? "lg:grid-cols-[72px_minmax(0,1fr)]" 
     : "lg:grid-cols-[300px_minmax(0,1fr)]";

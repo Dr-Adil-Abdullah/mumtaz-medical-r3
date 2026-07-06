@@ -4,6 +4,7 @@ import { db } from './db/index';
 import { ensureCoreData, seedInitialData } from './db/seed';
 import { useAuthStore } from './store/authStore';
 import { connectionManager } from './utils/connectionManager';
+import { syncManager } from './utils/syncManager';
 
 const FirstLaunch = lazy(() => import('./pages/FirstLaunch'));
 const Login = lazy(() => import('./pages/Login'));
@@ -48,28 +49,30 @@ export default function App() {
     let active = true;
 
     async function boot() {
-      await db.open();
+      try {
+        await ensureCoreData();
+        
+        // Start smart connection monitoring
+        connectionManager.startMonitoring(30000);
+        
+        // Start automatic sync system
+        syncManager.startAutoSync();
+        
+        // Do an initial quick sync attempt
+        setTimeout(() => {
+          if (connectionManager.internetOnline) {
+            connectionManager.quickSyncAttempt();
+          }
+        }, 2000);
 
-      if (TEMP_AUTH_BYPASS) {
-        const currentSettings = await db.settings.get(1);
-        const currentStaffCount = await db.staff.count();
-
-        if (!currentSettings || currentStaffCount === 0) {
-          await seedInitialData();
-        } else {
-          await ensureCoreData();
-        }
+        if (active) setReady(true);
+      } catch (error) {
+        console.error('Boot error:', error);
+        if (active) setReady(true);
       }
-
-      if (active) setReady(true);
     }
 
-    boot().catch(() => {
-      if (active) setReady(true);
-    });
-
-    // Start connection monitoring (offline-first - works even if Supabase is down)
-    connectionManager.startMonitoring();
+    boot();
 
     return () => {
       active = false;
@@ -77,58 +80,29 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!ready || !TEMP_AUTH_BYPASS) return;
-    if (!settings || staffCount === 0) return;
-    if (!user) {
-      useAuthStore.setState({ user: TEMP_ADMIN_USER });
-    }
-  }, [ready, settings?.id, staffCount, user]);
-
-  useEffect(() => {
-    if (!settings || TEMP_AUTH_BYPASS) return;
-    ensureCoreData();
-  }, [settings?.id]);
-
   if (!ready) {
     return <LoadingScreen />;
   }
 
-  if (!settings || staffCount === 0) {
-    if (TEMP_AUTH_BYPASS) {
-      return <LoadingScreen />;
+  if (TEMP_AUTH_BYPASS) {
+    const effectiveUser = user || TEMP_ADMIN_USER;
+    if (!user) {
+      useAuthStore.getState().setUser(TEMP_ADMIN_USER);
     }
-
-    return (
-      <Suspense fallback={<LoadingScreen />}>
-        <FirstLaunch onCreate={seedInitialData} />
-      </Suspense>
-    );
+    return <AppShell />;
   }
 
-  if (TEMP_AUTH_BYPASS && !user) {
-    return <LoadingScreen />;
+  if (!settings || staffCount === 0) {
+    return <FirstLaunch />;
   }
 
   if (!user) {
-    return (
-      <Suspense fallback={<LoadingScreen />}>
-        <Login shopName={settings.shop_name} />
-      </Suspense>
-    );
+    return <Login />;
   }
 
-  if ((user.mustChangePin || currentStaff?.must_change_pin) && !user.isEmergency) {
-    return (
-      <Suspense fallback={<LoadingScreen />}>
-        <ForcePinChangePage user={user} />
-      </Suspense>
-    );
+  if (user.mustChangePin) {
+    return <ForcePinChangePage />;
   }
 
-  return (
-    <Suspense fallback={<LoadingScreen />}>
-      <AppShell />
-    </Suspense>
-  );
+  return <AppShell />;
 }

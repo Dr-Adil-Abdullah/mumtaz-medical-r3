@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import { downloadBackupJSON, restoreBackupPayload } from '../db/backup';
 import { applyThemeMode, DEFAULT_THEME_PALETTES, THEME_COLOR_FIELDS, THEME_PRESETS } from '../utils/theme';
 import CloudBackupSection from '../components/shared/CloudBackupSection';
+import SyncControls from "../components/shared/SyncControls";
 
 export default function SettingsPage() {
   const settings = useLiveQuery(() => db.settings.get(1), []);
@@ -726,6 +727,7 @@ export default function SettingsPage() {
 
       {/* ═══ CLOUD BACKUP (Google Drive) ═══ */}
       <CloudBackupSection />
+      <SyncControls />
     </div>
   );
 }
