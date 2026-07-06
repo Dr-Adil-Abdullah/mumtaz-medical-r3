@@ -8,9 +8,8 @@ import {
   listGoogleDriveBackups, 
   downloadFromGoogleDrive, 
   deleteFromGoogleDrive, 
-  authenticateGoogle, 
-  initializeGapiClient,
-  initializeGisClient
+  authenticateGoogle,
+  isGoogleApiReady
 } from '../../utils/googleDriveBackup';
 
 export default function CloudBackupSection() {
@@ -21,24 +20,17 @@ export default function CloudBackupSection() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleApiReady, setGoogleApiReady] = useState(false);
 
+  // Check if Google API is ready on mount
   useEffect(() => {
-    const checkAndInit = async () => {
-      try {
-        if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
-          await initializeGapiClient();
-          initializeGisClient();
-          setGoogleApiReady(true);
-        } else {
-          // Scripts not loaded yet, retry
-          setTimeout(checkAndInit, 500);
-        }
-      } catch (error) {
-        console.error('Google API init error:', error);
+    const checkApi = () => {
+      if (isGoogleApiReady()) {
+        setGoogleApiReady(true);
+      } else {
+        // Check again after 1 second
+        setTimeout(checkApi, 1000);
       }
     };
-    // Start checking after 1 second
-    const timer = setTimeout(checkAndInit, 1000);
-    return () => clearTimeout(timer);
+    checkApi();
   }, []);
 
   function flash(message, isError = false) {
@@ -75,8 +67,7 @@ export default function CloudBackupSection() {
     try {
       const backup = await uploadBackup(file);
       const stats = getBackupStats(backup);
-      const confirmMsg = `Restore this backup?\n\nRecords: ${stats.totalRecords}\nTables: ${stats.totalTables}\n\nThis will OVERWRITE all current data!`;
-      if (!window.confirm(confirmMsg)) {
+      if (!window.confirm(`Restore this backup?\n\nRecords: ${stats.totalRecords}\nTables: ${stats.totalTables}\n\nThis will OVERWRITE all current data!`)) {
         setBackupLoading(false);
         return;
       }
@@ -92,16 +83,23 @@ export default function CloudBackupSection() {
 
   async function handleGoogleAuth() {
     try {
+      setBackupLoading(true);
+      setBackupError('');
+
       if (!googleApiReady) {
-        flash('Google API still loading. Please wait 2-3 seconds and try again.', true);
+        flash('⏳ Google API is still loading. Please wait a few seconds and try again.', true);
+        setBackupLoading(false);
         return;
       }
+
       await authenticateGoogle();
       setGoogleConnected(true);
       flash('✅ Connected to Google Drive!');
       await loadGoogleDriveBackups();
     } catch (error) {
       flash(error.message, true);
+    } finally {
+      setBackupLoading(false);
     }
   }
 
@@ -119,7 +117,7 @@ export default function CloudBackupSection() {
     try {
       const backup = await exportAllData();
       const result = await uploadToGoogleDrive(backup);
-      flash(`✅ Backup uploaded to Google Drive! File: ${result.filename}`);
+      flash(`✅ Backup uploaded to Google Drive!`);
       await loadGoogleDriveBackups();
     } catch (error) {
       flash(error.message, true);
@@ -146,7 +144,7 @@ export default function CloudBackupSection() {
   }
 
   async function handleGoogleDriveDelete(fileId, filename) {
-    if (!window.confirm(`Delete backup "${filename}"? Cannot be undone!`)) return;
+    if (!window.confirm(`Delete backup "${filename}"?`)) return;
     try {
       await deleteFromGoogleDrive(fileId);
       flash('✅ Backup deleted from Google Drive');
@@ -164,7 +162,7 @@ export default function CloudBackupSection() {
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-brand-300">Cloud Backup</p>
             <h2 className="mt-1 text-xl font-bold text-white">Google Drive</h2>
-            <p className="mt-1 text-sm text-slate-400">Save backup directly to your Google Drive</p>
+            <p className="mt-1 text-sm text-slate-400">Save backup to your Google Drive</p>
           </div>
         </div>
         <Badge className={googleConnected ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-slate-500/30 bg-slate-500/10 text-slate-200'}>
@@ -182,7 +180,7 @@ export default function CloudBackupSection() {
       {/* Local Backup */}
       <div className="mb-6 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
         <h3 className="text-lg font-semibold text-white">💾 Local Backup</h3>
-        <p className="mt-1 text-sm text-slate-400">Download or restore backup from your computer</p>
+        <p className="mt-1 text-sm text-slate-400">Download or restore from your computer</p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Button onClick={handleLocalBackup} disabled={backupLoading}>
             {backupLoading ? 'Creating...' : '📥 Download Backup'}
@@ -201,7 +199,7 @@ export default function CloudBackupSection() {
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h3 className="text-lg font-semibold text-white">🔵 Google Drive</h3>
-            <p className="mt-1 text-sm text-slate-400">Save backup to your Google Drive account</p>
+            <p className="mt-1 text-sm text-slate-400">Save backup to Google Drive</p>
           </div>
           <Badge className={googleConnected ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-slate-500/30 bg-slate-500/10 text-slate-200'}>
             {googleConnected ? '✅ Connected' : '❌ Not Connected'}
@@ -211,16 +209,15 @@ export default function CloudBackupSection() {
         {!googleConnected ? (
           <div className="space-y-3">
             <p className="text-sm text-slate-400">
-              Connect your Google account to save backups to Google Drive.
+              Click the button below to connect your Google account.
             </p>
-            {!googleApiReady ? (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-200">
-                ⏳ Google API is loading... Please wait a few seconds and refresh the page if this takes too long.
-              </div>
-            ) : (
-              <Button onClick={handleGoogleAuth} disabled={backupLoading}>
-                🔐 Connect Google Drive
-              </Button>
+            <Button onClick={handleGoogleAuth} disabled={backupLoading || !googleApiReady}>
+              {backupLoading ? 'Connecting...' : '🔐 Connect Google Drive'}
+            </Button>
+            {!googleApiReady && (
+              <p className="text-xs text-amber-300">
+                ⏳ Please wait 2-3 seconds for Google API to load, then click Connect.
+              </p>
             )}
           </div>
         ) : (
@@ -259,10 +256,6 @@ export default function CloudBackupSection() {
             )}
           </>
         )}
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-        <strong>⚠️ Important:</strong> Restoring a backup will overwrite ALL current data. Backup your current data first!
       </div>
     </Card>
   );
