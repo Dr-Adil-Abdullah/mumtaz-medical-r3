@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { navItems } from '../../constants/navigation';
@@ -26,12 +26,6 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
   const [pinSuccess, setPinSuccess] = useState('');
   const [savingPin, setSavingPin] = useState(false);
   const [theme, setTheme] = useState('dark');
-  
-  // === NEW: Auto-hide header on scroll ===
-  const [headerVisible, setHeaderVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const scrollTimeout = useRef(null);
-
   const openSession = useLiveQuery(async () => {
     const sessions = await db.day_sessions.where('status').equals('open').toArray();
     return sessions[0] ?? null;
@@ -80,78 +74,29 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // === NEW: Scroll-based header hide/show logic ===
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Show header when scrolling up
-      if (currentScrollY < lastScrollY.current) {
-        setHeaderVisible(true);
-      } 
-      // Hide header when scrolling down (after 80px)
-      else if (currentScrollY > 80 && currentScrollY > lastScrollY.current) {
-        setHeaderVisible(false);
-      }
-
-      lastScrollY.current = currentScrollY;
-
-      // Auto-show header after 1.8 seconds of inactivity
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-      
-      scrollTimeout.current = setTimeout(() => {
-        setHeaderVisible(true);
-      }, 1800);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-    };
-  }, []);
-
   function resetPinModal() {
     setCurrentPin('');
     setNewPin('');
     setConfirmPin('');
     setPinError('');
     setPinSuccess('');
+    setSavingPin(false);
   }
 
-  async function handlePinSubmit(e) {
-    e.preventDefault();
+  async function handlePinSubmit(event) {
+    event.preventDefault();
     setPinError('');
     setPinSuccess('');
-
-    if (currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4) {
-      setPinError('All PINs must be 4 digits.');
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinError('New PIN and confirm PIN do not match.');
-      return;
-    }
-    if (newPin === '0000' || newPin === '1111' || newPin === '1234') {
-      setPinError('This PIN is too weak. Please choose a different one.');
-      return;
-    }
-
     setSavingPin(true);
+
     try {
-      const success = await updateOwnPin(currentPin, newPin);
-      if (success) {
-        setPinSuccess('PIN updated successfully!');
-        setTimeout(() => {
-          setPinModalOpen(false);
-          resetPinModal();
-        }, 1200);
-      } else {
-        setPinError('Current PIN is incorrect.');
-      }
-    } catch (err) {
-      setPinError('Failed to update PIN. Please try again.');
+      await updateOwnPin({ currentPin, newPin, confirmPin });
+      setPinSuccess('Your PIN has been changed successfully.');
+      setCurrentPin('');
+      setNewPin('');
+      setConfirmPin('');
+    } catch (error) {
+      setPinError(error.message || 'PIN could not be changed.');
     } finally {
       setSavingPin(false);
     }
@@ -159,11 +104,7 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
 
   return (
     <>
-      <header 
-        className={`glass panel-elevated sticky top-3 z-20 mb-5 rounded-[30px] px-4 py-4 sm:px-5 lg:top-6 lg:mb-6 transition-all duration-300 ${
-          headerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
-        }`}
-      >
+      <header className="glass panel-elevated sticky top-3 z-20 mb-5 rounded-[30px] px-4 py-4 sm:px-5 lg:top-6 lg:mb-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
@@ -188,12 +129,48 @@ export default function Header({ settings, user, onLogout, onMenuToggle, mobileN
               {user?.mustChangePin ? (
                 <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-100">PIN change pending</Badge>
               ) : null}
-              <ConnectionStatusBadge />
-              <OfflineBadge />
+              <Badge className={openSession ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-slate-500/30 bg-slate-500/10 text-slate-200'}>
+                {openSession ? 'Day Open' : 'Day Closed'}
+              </Badge>
+              {tempBypass ? (
+                <Badge className="border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-100">Temporary admin bypass</Badge>
+              ) : null}
+              <Badge className="border-sky-500/30 bg-sky-500/10 text-sky-200">Local-only mode</Badge>
+              {canApproveReturns && (pendingReturnCount ?? 0) > 0 ? (
+                <Link to="/return-approvals">
+                  <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-100">
+                    {pendingReturnCount} pending return approval{pendingReturnCount === 1 ? '' : 's'}
+                  </Badge>
+                </Link>
+              ) : null}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
+            {/* ── Search Button ── */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="group relative inline-flex h-11 items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 px-3.5 text-slate-400 transition-all duration-200 hover:border-brand-400/30 hover:bg-brand-500/10 hover:text-brand-300"
+              aria-label="Global Search"
+              title="Search (Ctrl+K)"
+            >
+              {/* Magnifying glass icon with a subtle circular ring */}
+              <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] ring-1 ring-white/[0.08] transition-all duration-200 group-hover:bg-brand-500/15 group-hover:ring-brand-400/20">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <span className="hidden text-sm font-medium sm:inline">Search</span>
+              <kbd className="hidden rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-mono text-slate-500 md:inline">⌘K</kbd>
+            </button>
+
+            <OfflineBadge />
+            <ConnectionStatusBadge />
+            <Button variant="secondary" onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
+              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </Button>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
               <span className="font-semibold text-white">{user.name}</span>
               <span className="mx-2 text-slate-500">•</span>

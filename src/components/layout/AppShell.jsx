@@ -43,11 +43,25 @@ export default function AppShell() {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Default: OPEN
+
+  const handleToggleCollapse = () => {
+    setSidebarCollapsed(prev => !prev);
+  };
+
+  const gridClass = sidebarCollapsed 
+    ? "lg:grid-cols-[72px_minmax(0,1fr)]" 
+    : "lg:grid-cols-[300px_minmax(0,1fr)]";
 
   return (
     <div className="min-h-screen px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-6">
-      <div className="mx-auto grid max-w-[1600px] gap-4 xl:gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <div className={`mx-auto grid max-w-[1600px] gap-4 xl:gap-6 ${gridClass}`}>
+        <Sidebar 
+          mobileOpen={mobileNavOpen} 
+          onClose={() => setMobileNavOpen(false)} 
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleCollapse}
+        />
 
         <div className="min-w-0">
           <Header
